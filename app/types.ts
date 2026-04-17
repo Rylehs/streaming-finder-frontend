@@ -21,15 +21,11 @@ export type FilmResult = ContentResult;
 
 export type PhysicalFormat = "DVD" | "Blu-ray" | "4K UHD";
 
-export interface PhysicalOffer {
+export interface PhysicalData {
+  has_physical: boolean;
   title: string;
-  retailer: string;
-  format: PhysicalFormat;
-  edition: string | null;
-  price_eur: number | null;
-  url: string | null;
-  image_url: string | null;
-  in_stock: boolean;
+  original_title: string;
+  year: number | null;
 }
 
 export interface StreamingOffer {

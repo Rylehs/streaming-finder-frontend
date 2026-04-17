@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { ContentResult, ContentType, StreamingOffer, PhysicalOffer } from "./types";
+import type { ContentResult, ContentType, StreamingOffer, PhysicalData } from "./types";
 import SearchBar from "./components/SearchBar";
 import FilmHero from "./components/FilmHero";
 import OfferSection from "./components/OfferSection";
@@ -20,7 +20,7 @@ export default function Home() {
   const [contentType, setContentType] = useState<ContentType>("movie");
   const [content, setContent] = useState<ContentResult | null>(null);
   const [offers, setOffers] = useState<StreamingOffer[]>([]);
-  const [physicalOffers, setPhysicalOffers] = useState<PhysicalOffer[]>([]);
+  const [physicalData, setPhysicalData] = useState<PhysicalData | null>(null);
   const [loading, setLoading] = useState(false);
   const [physicalLoading, setPhysicalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +32,7 @@ export default function Home() {
     setContentType(type);
     setContent(null);
     setOffers([]);
-    setPhysicalOffers([]);
+    setPhysicalData(null);
     setError(null);
   }
 
@@ -42,7 +42,7 @@ export default function Home() {
 
     setContent(selected);
     setOffers([]);
-    setPhysicalOffers([]);
+    setPhysicalData(null);
     setError(null);
     setLoading(true);
     setPhysicalLoading(true);
@@ -78,7 +78,7 @@ export default function Home() {
       const res = physicalResult.value;
       if (res.ok) {
         const data = await res.json();
-        setPhysicalOffers((data.offers ?? []) as PhysicalOffer[]);
+        setPhysicalData(data as PhysicalData);
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
@@ -168,7 +168,7 @@ export default function Home() {
               </div>
             )}
             <OfferSection offers={offers} loading={loading} mySubscriptions={selected} />
-            <PhysicalSection offers={physicalOffers} loading={physicalLoading} />
+            <PhysicalSection data={physicalData} loading={physicalLoading} />
           </>
         )}
       </div>
