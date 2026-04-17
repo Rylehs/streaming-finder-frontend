@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
 import type { ContentResult, ContentType, StreamingOffer, PhysicalData } from "./types";
 import SearchBar from "./components/SearchBar";
 import FilmHero from "./components/FilmHero";
@@ -41,8 +40,6 @@ export default function Home() {
   const [showSubPanel, setShowSubPanel] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { selected, toggle, hydrated } = useSubscriptions();
-  const searchParams = useSearchParams();
-  const router = useRouter();
 
   // ── Fetch commun ──────────────────────────────────────────────────────────
   async function fetchAndDisplay(tmdbId: number, type: ContentType) {
@@ -89,8 +86,9 @@ export default function Home() {
 
   // ── Chargement automatique depuis l'URL (?id=...&type=...) ───────────────
   useEffect(() => {
-    const id = parseInt(searchParams.get("id") ?? "", 10);
-    const typeParam = searchParams.get("type");
+    const params = new URLSearchParams(window.location.search);
+    const id = parseInt(params.get("id") ?? "", 10);
+    const typeParam = params.get("type");
     if (!id) return;
     const type: ContentType = typeParam === "tv" ? "tv" : "movie";
     setContentType(type);
@@ -100,7 +98,7 @@ export default function Home() {
 
   // ── Sélection depuis la barre de recherche ────────────────────────────────
   async function handleSelect(item: ContentResult) {
-    router.replace(`?id=${item.tmdb_id}&type=${contentType}`, { scroll: false });
+    window.history.replaceState(null, "", `?id=${item.tmdb_id}&type=${contentType}`);
     setContent(item);
     fetchAndDisplay(item.tmdb_id, contentType);
   }
@@ -111,7 +109,7 @@ export default function Home() {
     setOffers([]);
     setPhysicalData(null);
     setError(null);
-    router.replace("/", { scroll: false });
+    window.history.replaceState(null, "", "/");
   }
 
   return (
