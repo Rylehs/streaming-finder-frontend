@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { ContentResult, ContentType, StreamingOffer } from "./types";
+import type { ContentResult, ContentType, StreamingOffer, PhysicalOffer } from "./types";
 import SearchBar from "./components/SearchBar";
 import FilmHero from "./components/FilmHero";
 import OfferSection from "./components/OfferSection";
+import PhysicalSection from "./components/PhysicalSection";
 import SubscriptionPanel from "./components/SubscriptionPanel";
 import { useSubscriptions } from "./hooks/useSubscriptions";
 
@@ -19,7 +20,9 @@ export default function Home() {
   const [contentType, setContentType] = useState<ContentType>("movie");
   const [content, setContent] = useState<ContentResult | null>(null);
   const [offers, setOffers] = useState<StreamingOffer[]>([]);
+  const [physicalOffers, setPhysicalOffers] = useState<PhysicalOffer[]>([]);
   const [loading, setLoading] = useState(false);
+  const [physicalLoading, setPhysicalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -29,6 +32,7 @@ export default function Home() {
     setContentType(type);
     setContent(null);
     setOffers([]);
+    setPhysicalOffers([]);
     setError(null);
   }
 
@@ -38,50 +42,49 @@ export default function Home() {
 
     setContent(selected);
     setOffers([]);
+    setPhysicalOffers([]);
     setError(null);
     setLoading(true);
+    setPhysicalLoading(true);
 
+    const signal = abortRef.current.signal;
+
+    // Streaming + support physique en parallèle
+    const [streamingResult, physicalResult] = await Promise.allSettled([
+      fetch(`${API}/availability/${selected.tmdb_id}?type=${contentType}`, { signal }),
+      fetch(`${API}/physical/${selected.tmdb_id}?type=${contentType}`, { signal }),
+    ]);
+
+    // Streaming
     try {
-      const res = await fetch(
-        `${API}/availability/${selected.tmdb_id}?type=${contentType}`,
-        { signal: abortRef.current.signal }
-      );
-
-      if (!res.body) throw new Error("Pas de réponse du serveur");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const event = JSON.parse(line.slice(6));
-
-          if (event.event === "film_meta") {
-            setContent(event.data as ContentResult);
-          } else if (event.event === "offer") {
-            setOffers((prev) => [...prev, event.data as StreamingOffer]);
-          } else if (event.event === "done") {
-            setLoading(false);
-          } else if (event.event === "error") {
-            setError(event.data.message);
-            setLoading(false);
-          }
-        }
-      }
+      if (streamingResult.status === "rejected") throw streamingResult.reason;
+      const res = streamingResult.value;
+      if (!res.ok) throw new Error(`Erreur serveur : ${res.status}`);
+      const data = await res.json();
+      if (data.content) setContent(data.content as ContentResult);
+      setOffers((data.offers ?? []) as StreamingOffer[]);
+      if (!data.offers?.length) setError(data.message);
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== "AbortError") {
         setError("Erreur de connexion au serveur.");
-        setLoading(false);
       }
+    } finally {
+      setLoading(false);
+    }
+
+    // Support physique
+    try {
+      if (physicalResult.status === "rejected") throw physicalResult.reason;
+      const res = physicalResult.value;
+      if (res.ok) {
+        const data = await res.json();
+        setPhysicalOffers((data.offers ?? []) as PhysicalOffer[]);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      // Pas d'erreur visible si physique échoue — section juste absente
+    } finally {
+      setPhysicalLoading(false);
     }
   }
 
@@ -165,6 +168,7 @@ export default function Home() {
               </div>
             )}
             <OfferSection offers={offers} loading={loading} mySubscriptions={selected} />
+            <PhysicalSection offers={physicalOffers} loading={physicalLoading} />
           </>
         )}
       </div>

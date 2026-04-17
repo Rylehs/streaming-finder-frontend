@@ -19,6 +19,19 @@ export interface ContentResult {
 // Alias
 export type FilmResult = ContentResult;
 
+export type PhysicalFormat = "DVD" | "Blu-ray" | "4K UHD";
+
+export interface PhysicalOffer {
+  title: string;
+  retailer: string;
+  format: PhysicalFormat;
+  edition: string | null;
+  price_eur: number | null;
+  url: string | null;
+  image_url: string | null;
+  in_stock: boolean;
+}
+
 export interface StreamingOffer {
   platform: string;
   platform_logo: string | null;
