@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import type { ContentResult, ContentType, StreamingOffer, PhysicalData } from "./types";
 import SearchBar from "./components/SearchBar";
 import FilmHero from "./components/FilmHero";
@@ -16,6 +17,19 @@ const CONTENT_TYPES: { value: ContentType; label: string; emoji: string }[] = [
   { value: "tv",    label: "Séries", emoji: "📺" },
 ];
 
+const EMPTY_CONTENT = (id: number, type: ContentType): ContentResult => ({
+  tmdb_id: id,
+  content_type: type,
+  title: "",
+  original_title: "",
+  year: null,
+  synopsis: null,
+  poster_url: null,
+  duration_min: null,
+  number_of_seasons: null,
+  number_of_episodes: null,
+});
+
 export default function Home() {
   const [contentType, setContentType] = useState<ContentType>("movie");
   const [content, setContent] = useState<ContentResult | null>(null);
@@ -27,35 +41,26 @@ export default function Home() {
   const [showSubPanel, setShowSubPanel] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const { selected, toggle, hydrated } = useSubscriptions();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
-  function handleTypeChange(type: ContentType) {
-    setContentType(type);
-    setContent(null);
-    setOffers([]);
-    setPhysicalData(null);
-    setError(null);
-  }
-
-  async function handleSelect(selected: ContentResult) {
+  // ── Fetch commun ──────────────────────────────────────────────────────────
+  async function fetchAndDisplay(tmdbId: number, type: ContentType) {
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
+    const signal = abortRef.current.signal;
 
-    setContent(selected);
     setOffers([]);
     setPhysicalData(null);
     setError(null);
     setLoading(true);
     setPhysicalLoading(true);
 
-    const signal = abortRef.current.signal;
-
-    // Streaming + support physique en parallèle
     const [streamingResult, physicalResult] = await Promise.allSettled([
-      fetch(`${API}/availability/${selected.tmdb_id}?type=${contentType}`, { signal }),
-      fetch(`${API}/physical/${selected.tmdb_id}?type=${contentType}`, { signal }),
+      fetch(`${API}/availability/${tmdbId}?type=${type}`, { signal }),
+      fetch(`${API}/physical/${tmdbId}?type=${type}`, { signal }),
     ]);
 
-    // Streaming
     try {
       if (streamingResult.status === "rejected") throw streamingResult.reason;
       const res = streamingResult.value;
@@ -65,27 +70,48 @@ export default function Home() {
       setOffers((data.offers ?? []) as StreamingOffer[]);
       if (!data.offers?.length) setError(data.message);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name !== "AbortError") {
+      if (err instanceof Error && err.name !== "AbortError")
         setError("Erreur de connexion au serveur.");
-      }
     } finally {
       setLoading(false);
     }
 
-    // Support physique
     try {
       if (physicalResult.status === "rejected") throw physicalResult.reason;
       const res = physicalResult.value;
-      if (res.ok) {
-        const data = await res.json();
-        setPhysicalData(data as PhysicalData);
-      }
+      if (res.ok) setPhysicalData((await res.json()) as PhysicalData);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") return;
-      // Pas d'erreur visible si physique échoue — section juste absente
     } finally {
       setPhysicalLoading(false);
     }
+  }
+
+  // ── Chargement automatique depuis l'URL (?id=...&type=...) ───────────────
+  useEffect(() => {
+    const id = parseInt(searchParams.get("id") ?? "", 10);
+    const typeParam = searchParams.get("type");
+    if (!id) return;
+    const type: ContentType = typeParam === "tv" ? "tv" : "movie";
+    setContentType(type);
+    setContent(EMPTY_CONTENT(id, type));
+    fetchAndDisplay(id, type);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sélection depuis la barre de recherche ────────────────────────────────
+  async function handleSelect(item: ContentResult) {
+    router.replace(`?id=${item.tmdb_id}&type=${contentType}`, { scroll: false });
+    setContent(item);
+    fetchAndDisplay(item.tmdb_id, contentType);
+  }
+
+  function handleTypeChange(type: ContentType) {
+    setContentType(type);
+    setContent(null);
+    setOffers([]);
+    setPhysicalData(null);
+    setError(null);
+    router.replace("/", { scroll: false });
   }
 
   return (

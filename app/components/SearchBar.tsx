@@ -54,6 +54,14 @@ export default function SearchBar({ onSelect, contentType }: Props) {
     onSelect(item);
   }
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" && suggestions.length > 0) {
+      handleSelect(suggestions[0]);
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  }
+
   const placeholder = contentType === "tv" ? "Rechercher une série..." : "Rechercher un film...";
 
   return (
@@ -66,6 +74,7 @@ export default function SearchBar({ onSelect, contentType }: Props) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="flex-1 outline-none text-gray-800 placeholder-gray-400 text-lg bg-transparent"
           autoFocus
