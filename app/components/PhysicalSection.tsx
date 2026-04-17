@@ -25,6 +25,11 @@ const RETAILERS = [
     build: (q: string) => `https://www.bol.com/be/fr/s/?q=${encodeURIComponent(q)}`,
   },
   {
+    name: "Amazon.com.be",
+    build: (q: string) =>
+      `https://www.amazon.com.be/s?k=${encodeURIComponent(q)}&i=dvd`,
+  },
+  {
     name: "Amazon.fr",
     build: (q: string) =>
       `https://www.amazon.fr/s?k=${encodeURIComponent(q)}&i=dvd&language=fr_FR`,
