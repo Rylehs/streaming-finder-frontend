@@ -156,10 +156,10 @@ interface Props {
 export default function PhysicalSection({ data, loading }: Props) {
   const [filter, setFilter] = useState<PhysicalFormat | "all">("all");
 
-  if (!loading && (!data || !data.has_physical)) return null;
-
   const offers = data?.offers ?? [];
-  const hasOffers = offers.length > 0;
+
+  // Masquer la section si : pas en cours de chargement ET (pas de données, pas de sortie physique, ou aucune offre trouvée)
+  if (!loading && (!data || !data.has_physical || offers.length === 0)) return null;
 
   const visible = filter === "all" ? offers : offers.filter((o) => o.format === filter);
   const formats = [...new Set(offers.map((o) => o.format))] as PhysicalFormat[];
@@ -179,7 +179,7 @@ export default function PhysicalSection({ data, loading }: Props) {
           </svg>
           <span>Recherche des éditions disponibles…</span>
         </div>
-      ) : hasOffers ? (
+      ) : (
         <div className="space-y-3">
           {/* Filtre format si plusieurs formats trouvés */}
           {formats.length > 1 && (
@@ -206,10 +206,7 @@ export default function PhysicalSection({ data, loading }: Props) {
             {visible.map((offer, i) => <ProductCard key={`${offer.url}-${i}`} offer={offer} />)}
           </div>
         </div>
-      ) : data ? (
-        /* Fallback : grille liens si Google non configuré */
-        <FallbackGrid data={data} />
-      ) : null}
+      )}
     </section>
   );
 }

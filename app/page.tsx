@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import type { ContentResult, ContentType, StreamingOffer, PhysicalData } from "./types";
 import SearchBar from "./components/SearchBar";
 import FilmHero from "./components/FilmHero";
@@ -16,18 +16,6 @@ const CONTENT_TYPES: { value: ContentType; label: string; emoji: string }[] = [
   { value: "tv",    label: "Séries", emoji: "📺" },
 ];
 
-const EMPTY_CONTENT = (id: number, type: ContentType): ContentResult => ({
-  tmdb_id: id,
-  content_type: type,
-  title: "",
-  original_title: "",
-  year: null,
-  synopsis: null,
-  poster_url: null,
-  duration_min: null,
-  number_of_seasons: null,
-  number_of_episodes: null,
-});
 
 export default function Home() {
   const [contentType, setContentType] = useState<ContentType>("movie");
@@ -84,21 +72,8 @@ export default function Home() {
     }
   }
 
-  // ── Chargement automatique depuis l'URL (?id=...&type=...) ───────────────
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = parseInt(params.get("id") ?? "", 10);
-    const typeParam = params.get("type");
-    if (!id) return;
-    const type: ContentType = typeParam === "tv" ? "tv" : "movie";
-    setContentType(type);
-    setContent(EMPTY_CONTENT(id, type));
-    fetchAndDisplay(id, type);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Sélection depuis la barre de recherche ────────────────────────────────
   async function handleSelect(item: ContentResult) {
-    window.history.replaceState(null, "", `?id=${item.tmdb_id}&type=${contentType}`);
     setContent(item);
     fetchAndDisplay(item.tmdb_id, contentType);
   }
@@ -109,7 +84,6 @@ export default function Home() {
     setOffers([]);
     setPhysicalData(null);
     setError(null);
-    window.history.replaceState(null, "", "/");
   }
 
   return (
